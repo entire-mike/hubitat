@@ -182,37 +182,37 @@ def zwaveEvent(hubitat.zwave.commands.versionv1.VersionReport cmd) {
   logDebug("versionv1.VersionReport '${cmd}'")
   state.firmwareVersion = "${cmd.applicationVersion}.${cmd.applicationSubVersion}"
   state.zWaveProtocolVersion = "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}"
-	log.info "Firmware Version ${state.firmwareVersion}"
-	device.updateSetting("firmwareVersion", "${cmd.applicationVersion}.${cmd.applicationSubVersion}")
+  log.info "Firmware Version ${state.firmwareVersion}"
+  device.updateSetting("firmwareVersion", "${cmd.applicationVersion}.${cmd.applicationSubVersion}")
 }
 
 /////////////////////////////////////////////////////
 // alarmv1.AlarmReport
 def zwaveEvent(hubitat.zwave.commands.alarmv1.AlarmReport cmd) {
-	logDebug "alarmv1.AlarmReport ${cmd}"
+  logDebug "alarmv1.AlarmReport ${cmd}"
 }
 
 /////////////////////////////////////////////////////
 // basicv1.BasicSet
 def zwaveEvent(hubitat.zwave.commands.basicv1.BasicSet cmd) {
 
-	def state = cmd.value ? "open" : "closed"
-	if(device.currentValue("contact") != state) {
-		log.info "Contact ${state}"
-		createEvent(name:"contact", value:state, isStateChange:true, displayed:true)
-	}
+  def state = cmd.value ? "open" : "closed"
+  if(device.currentValue("contact") != state) {
+    log.info "Contact ${state}"
+    createEvent(name:"contact", value:state, isStateChange:true, displayed:true)
+  }
 }
 
 /////////////////////////////////////////////////////
 // sensormultilevelv5.SensorMultilevelReport
 def zwaveEvent(hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport cmd, ep = null) {
-	logDebug "sensormultilevelv5.SensorMultilevelReport ${ep} ${cmd}"
+  logDebug "sensormultilevelv5.SensorMultilevelReport ${ep} ${cmd}"
 	
-	if (cmd.sensorType == 1) {
+  if (cmd.sensorType == 1) {
     temp = (double)(cmd.scaledSensorValue)
-		log.info "Temperature ${temp.round(1)}°C"
+    log.info "Temperature ${temp.round(1)}°C"
     createEvent(name: "temperature", value: temperature(temp.round(1), "C"), unit:"°${getTemperatureScale()}")
-	}
+  }
 }
 
 
@@ -237,58 +237,59 @@ def zwaveEvent(hubitat.zwave.Command cmd) {
 // securityv1.SecurityMessageEncapsulation
 def zwaveEvent(hubitat.zwave.commands.securityv1.SecurityMessageEncapsulation cmd) {
   logDebug("securityv1.SecurityMessageEncapsulation '${cmd}'")
-	def encapsulatedCommand = cmd.encapsulatedCommand( )
-	if (encapsulatedCommand)
-		return zwaveEvent(encapsulatedCommand)
-	else
-		log.warn "Failed to extract secure message from ${cmd}"
+  def encapsulatedCommand = cmd.encapsulatedCommand( )
+  if (encapsulatedCommand)
+    return zwaveEvent(encapsulatedCommand)
+  else
+    log.warn "Failed to extract secure message from ${cmd}"
 }
 
 /////////////////////////////////////////////////////
 // crc16encapv1.Crc16Encap
 def zwaveEvent(hubitat.zwave.commands.crc16encapv1.Crc16Encap cmd) {
-	def encapsulatedCommand = zwave.getCommand(cmd.commandClass, cmd.command, cmd.data)
-	if (encapsulatedCommand)
-		zwaveEvent(encapsulatedCommand)
-	else
-		log.warn "Unable to extract CRC16 command from ${cmd}"
+  def encapsulatedCommand = zwave.getCommand(cmd.commandClass, cmd.command, cmd.data)
+  if (encapsulatedCommand)
+    zwaveEvent(encapsulatedCommand)
+  else
+    log.warn "Unable to extract CRC16 command from ${cmd}"
 }
 
 /////////////////////////////////////////////////////
 // multichannelv3.MultiChannelCmdEncap
 def zwaveEvent(hubitat.zwave.commands.multichannelv3.MultiChannelCmdEncap cmd) {
-	def encapsulatedCommand = cmd.encapsulatedCommand( )
-	if (encapsulatedCommand) {
+  def encapsulatedCommand = cmd.encapsulatedCommand( )
+  if (encapsulatedCommand) {
     logDebug ("Command from endpoint ${cmd.sourceEndPoint}: ${encapsulatedCommand}")
-		zwaveEvent(encapsulatedCommand, cmd.sourceEndPoint as Integer)
-	} else
-		log.warn "Could not extract multi channel command from ${cmd}"
+    zwaveEvent(encapsulatedCommand, cmd.sourceEndPoint as Integer)
+  }
+  else
+    log.warn "Could not extract multi channel command from ${cmd}"
 }
 
 /////////////////////////////////////////////////////
 // Standard wakeupv1 WakeUpNotification
 def zwaveEvent(hubitat.zwave.commands.wakeupv1.WakeUpNotification cmd) {
- 	log.info "Device woke up"
+  log.info "Device woke up"
 	
-	def cmds = updateSettings()
-	cmds << zwave.wakeUpV1.wakeUpNoMoreInformation()
+  def cmds = updateSettings()
+  cmds << zwave.wakeUpV1.wakeUpNoMoreInformation()
   return response(commands(cmds))
 }
 
 /////////////////////////////////////////////////////
 // Standard wakeupv2 WakeUpNotification
 def zwaveEvent(hubitat.zwave.commands.wakeupv2.WakeUpNotification cmd) {
- 	log.info "Device woke up"
+  log.info "Device woke up"
 	
-	def cmds = updateSettings()
-	cmds << zwave.wakeUpV2.wakeUpNoMoreInformation()
+  def cmds = updateSettings()
+  cmds << zwave.wakeUpV2.wakeUpNoMoreInformation()
   return response(commands(cmds))
 }
 
 ////////////////////////////////
 // Standard battery report
 def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
-	log.info "Battery ${cmd.batteryLevel}%"
+  log.info "Battery ${cmd.batteryLevel}%"
   createEvent(name:"battery", value:cmd.batteryLevel, unit:"%")
 }
 
@@ -301,16 +302,16 @@ def zwaveEvent(hubitat.zwave.commands.batteryv1.BatteryReport cmd) {
 /////////////////////////////////////////////////////
 // create a delay between commands
 private commands(commands, delay=500) {
-	delayBetween(commands.collect{command(it)}, delay)
+  delayBetween(commands.collect{command(it)}, delay)
 }
 
 /////////////////////////////////////////////////////
 // Format the command according to the security
 private command(hubitat.zwave.Command cmd) {
-	if (state.sec)
-		zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
-	else
-		cmd.format()
+  if (state.sec)
+    zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
+  else
+    cmd.format()
 }
 
 /////////////////////////////////////////////////////
@@ -328,13 +329,13 @@ private endpoint(hubitat.zwave.Command cmd, endpoint) {
 // Standard debug logging
 private def logDebug(message) {
   if(settings.enableDebugging == true)
-	  log.debug "$message"
+    log.debug "$message"
 }
 
 /////////////////////////////////////////////////////
 // Scale temperature for units
 def temperature(value, units) {
-	if (location.temperatureScale != units) {
+  if (location.temperatureScale != units) {
     if (location.temperatureScale == "F")
       value = value * 1.8 + 32
     else
@@ -353,89 +354,94 @@ def temperature(value, units) {
 // Standard config v2 report
 /////////////////////////////////////////////////////
 def zwaveEvent(hubitat.zwave.commands.configurationv2.ConfigurationReport cmd) {
-	logDebug("configurationv2.ConfigurationReport $cmd")
-	updateProperty(cmd)
+  logDebug("configurationv2.ConfigurationReport $cmd")
+  updateProperty(cmd)
 }
 
 /////////////////////////////////////////////////////
 // Create the preferences from the XML
 def updateProperty(cmd)
 {
-	state.currentProperties."p${cmd.parameterNumber}" = array2Integer(cmd.configurationValue)
-	settings = SettingsPending(state.currentProperties)
-	if(settings == 0) {
-	  log.info("parameter ${cmd.parameterNumber} reported value ${array2Integer(cmd.configurationValue)}. All parameters updated")
-	  sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
+  state.currentProperties."p${cmd.parameterNumber}" = array2Integer(cmd.configurationValue)
+  settings = SettingsPending(state.currentProperties)
+  if(settings == 0) {
+    log.info("parameter ${cmd.parameterNumber} reported value ${array2Integer(cmd.configurationValue)}. All parameters updated")
+    sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
   }
-	else
-	  log.info("parameter ${cmd.parameterNumber} reported value ${array2Integer(cmd.configurationValue)}. ${settings} setting(s) left")
+  else
+    log.info("parameter ${cmd.parameterNumber} reported value ${array2Integer(cmd.configurationValue)}. ${settings} setting(s) left")
 }
 
 /////////////////////////////////////////////////////
 // associationv2.AssociationReport
 def zwaveEvent(hubitat.zwave.commands.associationv2.AssociationReport cmd) {
-	logDebug("Association for Group ${cmd.groupingIdentifier} = ${cmd.nodeId[0]}")
+  logDebug("Association for Group ${cmd.groupingIdentifier} = ${cmd.nodeId[0]}")
 	
-	state.currentProperties."a${cmd.groupingIdentifier}" = cmd.nodeId[0]
-	settings = SettingsPending(state.currentProperties)
-	if(settings == 0) {
-		log.info "Association Group ${cmd.groupingIdentifier} reported node ${cmd.nodeId[0]}. All parameters updated"
-	  sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
-	}
-	else
-		log.info "Association Group ${cmd.groupingIdentifier} reported node ${cmd.nodeId[0]}. ${settings} setting(s) left"
+  state.currentProperties."a${cmd.groupingIdentifier}" = cmd.nodeId[0]
+  settings = SettingsPending(state.currentProperties)
+  if(settings == 0) {
+    log.info "Association Group ${cmd.groupingIdentifier} reported node ${cmd.nodeId[0]}. All parameters updated"
+    sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
+  }
+  else
+    log.info "Association Group ${cmd.groupingIdentifier} reported node ${cmd.nodeId[0]}. ${settings} setting(s) left"
 }
 
 ////////////////////////////////
 // wakeUpV2.WakeUpIntervalReport
 def zwaveEvent(hubitat.zwave.commands.wakeupv2.WakeUpIntervalReport cmd) {
-	logDebug "Wake up interval = ${cmd}"
+  logDebug "Wake up interval = ${cmd}"
   
-	state.currentProperties.wI = cmd.seconds
-	settings = SettingsPending(state.currentProperties)
-	if(settings == 0) {
-		log.info "Wake up interval reported ${cmd.seconds}s. All parameters updated"
-	  sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
-	}
-	else
-		log.info "Wake up interval reported ${cmd.seconds}s. ${settings} setting(s) left"
+  state.currentProperties.wI = cmd.seconds
+  settings = SettingsPending(state.currentProperties)
+  if(settings == 0) {
+    log.info "Wake up interval reported ${cmd.seconds}s. All parameters updated"
+    sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
+  }
+  else
+    log.info "Wake up interval reported ${cmd.seconds}s. ${settings} setting(s) left"
 }
 
 /////////////////////////////////////////////////////
 // Array to integer
-def array2Integer(array) { 
-	switch(array.size()) {
-	case 1:
-		array[0]
-		break
-	case 2:
-		((array[0] & 0xFF) << 8) | (array[1] & 0xFF)
-		break
-	case 4:
-		((array[0] & 0xFF) << 24) | ((array[1] & 0xFF) << 16) | ((array[2] & 0xFF) << 8) | (array[3] & 0xFF)
-		break
-	}
+def array2Integer(array) {
+  def value
+    
+  switch(array.size()) {
+  case 1:
+    velue = (byte)array[0]
+    break
+  case 2:
+    value = (short)(((array[0] & 0xFF) << 8) | (array[1] & 0xFF))
+    break
+  case 4:
+    value = (int)(((array[0] & 0xFF) << 24) | ((array[1] & 0xFF) << 16) | ((array[2] & 0xFF) << 8) | (array[3] & 0xFF))
+    break
+  }
+  return(value)
 }
+
 
 /////////////////////////////////////////////////////
 // Integer to Array
 def integer2Array(value, size) {
 	
-	if(value instanceof String) {
+  if(value instanceof String) {
     value = value.toInteger()
-	}
-	switch(size) {
-	case 1:
-		[value & 0xFF]
+  }
+  switch(size) {
+  case 1:
+    [value & 0xFF]
     break
-	case 2:
-		[(value >> 8) & 0xFF, value & 0xFF]
-		break
-	case 4:
-		[(value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF]
-		break
-	}
+  case 2:
+    [(value >> 8) & 0xFF, value & 0xFF]
+    break
+  case 4:
+    [(value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF]
+    break
+  }
 }
+
 
 /////////////////////////////////////////////////////
 // Check if parameter is valid for the firmware
