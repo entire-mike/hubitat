@@ -1,63 +1,78 @@
+/*
+  Fibaro Motion Sensor FGMS-001
+  Based on code from the multiple people from the Hubitat Community and reference drivers from Hubitat
+  These include but not limited to 
+    Jean-Jacques GUILLEMAUD, Artur Draga, Bryan Turcotte, Robin Winbourne, Eric Maycock
+  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+  in compliance with the License. You may obtain a copy of the License at:
+ 
+  http://www.apache.org/licenses/LICENSE-2.0
+ 
+  Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
+  on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
+  for the specific language governing permissions and limitations under the License.
+*/
+
 metadata {
   definition (name: "Fibaro Door Switch FGK-10X", namespace: "entire", author: "Entire") {
-  	capability "ContactSensor"
-		capability "Battery"
-		capability "Temperature Measurement"
-		capability "Sensor"
+    capability "ContactSensor"
+    capability "Battery"
+    capability "Temperature Measurement"
+    capability "Sensor"
     capability "Tamper Alert"
 
     command "clear"
         
-		fingerprint deviceId: "0x4000", inClusters: "0x30,0x9C,0x60,0x85,0x72,0x70,0x86,0x80,0x56,0x84,0x7A"
-		fingerprint deviceId: "0x4001", inClusters: "0x5E,0x85,0x59,0x22,0x20,0x80,0x70,0x56,0x5A,0x7A,0x72,0x8E,0x71,0x73,0x98,0x2B,0x9C,0x30,0x31,0x86,0x84"
-	}
+    fingerprint deviceId: "0x4000", inClusters: "0x30,0x9C,0x60,0x85,0x72,0x70,0x86,0x80,0x56,0x84,0x7A"
+    fingerprint deviceId: "0x4001", inClusters: "0x5E,0x85,0x59,0x22,0x20,0x80,0x70,0x56,0x5A,0x7A,0x72,0x8E,0x71,0x73,0x98,0x2B,0x9C,0x30,0x31,0x86,0x84"
+  }
 	
   preferences {
-		parameterMap().each {
+    parameterMap().each {
       if(it.type != null && validForFirmware(it))
-			  input it.name, it.type, title:it.title, options:it.items, range:(it.min != null && it.max != null) ? "${it.min}..${it.max}" : null, defaultValue:it.default, required: false
-		}
-	}
+	    input it.name, it.type, title:it.title, options:it.items, range:(it.min != null && it.max != null) ? "${it.min}..${it.max}" : null, defaultValue:it.default, required: false
+    }
+  }
 }
 
 /////////////////////////////////////////////////////
 // Parameters 
 private parameterMap() {
-	[
-		[name:"wakeUpInterval", fw:"2.1-2.5", mode:"wakeup", type:"number", title:"Wake Up interval in seconds (default 4000)", default:"4000", min:1, max:65535],
-		[name:"p1", index:1, fw:"2.1-2.5", mode:"zwave", size:2, type:"number", default:0, min:0, max:65535, title:"Input IN alarm cancellation delay (0-65535s)"],
-		[name:"p2", index:2, fw:"2.1-2.5", mode:"zwave", size:1, type:"enum", default:1, min:0, max:1, title:"Visual LED indicator", items:[0:"Off",1:"On"]],
-		[name:"p3", index:3, fw:"2.1-2.5", mode:"zwave", size:1, type:"enum", default:0, min:0, max:3, title:"Type of input switch", items:[0:"Normally Closed",1:"Normally Open",2:"Monostable",3:"Bistable"]],
-		[name:"p5", index:5, fw:"2.1-2.5", mode:"zwave", size:1, type:"enum", default:255, min:1, max:255, title:"Type of of control frame", items:[1:"Smoke Alarm",2:"CO Alarm",3:"CO2 Alarm",4:"Fire Alarm",5:"Water Alarm",255:"Basic Set"]],
-		[name:"p7", index:7, fw:"2.1-2.5", mode:"zwave", size:2, type:"number", default:255, min:0, max:255, title:"Value of On command sent to 1st association group (0-99, 255)"],
-		[name:"p12", index:12, fw:"2.1-2.5", mode:"zwave", size:1, type:"number", default:8, min:0, max:255, title:"Temperature report threshold (0-255 = 0-16DegC)"],
+[
+  [name:"wakeUpInterval", fw:"2.1-2.5", mode:"wakeup", type:"number", title:"Wake Up interval in seconds (default 4000)", default:"4000", min:1, max:65535],
+  [name:"p1", index:1, fw:"2.1-2.5", mode:"zwave", size:2, type:"number", default:0, min:0, max:65535, title:"Input IN alarm cancellation delay (0-65535s)"],
+  [name:"p2", index:2, fw:"2.1-2.5", mode:"zwave", size:1, type:"enum", default:1, min:0, max:1, title:"Visual LED indicator", items:[0:"Off",1:"On"]],
+  [name:"p3", index:3, fw:"2.1-2.5", mode:"zwave", size:1, type:"enum", default:0, min:0, max:3, title:"Type of input switch", items:[0:"Normally Closed",1:"Normally Open",2:"Monostable",3:"Bistable"]],
+  [name:"p5", index:5, fw:"2.1-2.5", mode:"zwave", size:1, type:"enum", default:255, min:1, max:255, title:"Type of of control frame", items:[1:"Smoke Alarm",2:"CO Alarm",3:"CO2 Alarm",4:"Fire Alarm",5:"Water Alarm",255:"Basic Set"]],
+  [name:"p7", index:7, fw:"2.1-2.5", mode:"zwave", size:2, type:"number", default:255, min:0, max:255, title:"Value of On command sent to 1st association group (0-99, 255)"],
+  [name:"p12", index:12, fw:"2.1-2.5", mode:"zwave", size:1, type:"number", default:8, min:0, max:255, title:"Temperature report threshold (0-255 = 0-16DegC)"],
 
-		[name:"wakeUpInterval", fw:"3.2", mode:"wakeup", type:"number", title:"Wake Up interval in seconds (default 21600)", default:"2160", min:3600, max:64800],
-		[name:"p1", index:1, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"Operation mode", items:[0:"Door/Window/External Alarm sensor",1:"External button"]],
-		[name:"p2", index:2, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"State when closed", items:[0:"Door/Window closed",1:"Door/Window open"]],
-		[name:"p3", index:3, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:4, title:"Visual LED indicator", items:[0:"None",1:"Opening / Closing",2:"Wake up",4:"Tampering"]],
-		[name:"p4", index:4, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"Range test after double click", items:[0:"Disabled",1:"Enabled"]],
-		[name:"p10", index:10, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:2, title:"2nd association group triggers", items:[0:"Opening & Closing",1:"Opening",2:"Closing"]],
-		[name:"p11", index:11, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:2, title:"Commands sent to 2nd association group", items:[0:"On",1:"Off",2:"On & Off"]],
-		[name:"p12", index:12, fw:"3.2", mode:"zwave", size:2, type:"number", default:255, min:0, max:255, title:"Value of On command sent to 2nd association group (0-99, 255)"],
-		[name:"p13", index:13, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:0, max:255, title:"Value of Off command sent to 2nd association group (0-99, 255)"],
-		[name:"p14", index:14, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:0, max:32400, title:"Time delay of On command frame (0-32400 Seconds)"],
-		[name:"p15", index:15, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:0, max:32400, title:"Time delay of Off command frame (0-32400 Seconds)"],
-		[name:"p20", index:20, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:5, title:"Type of alarm frames (3rd Association group)", items:[
+  [name:"wakeUpInterval", fw:"3.2", mode:"wakeup", type:"number", title:"Wake Up interval in seconds (default 21600)", default:"2160", min:3600, max:64800],
+  [name:"p1", index:1, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"Operation mode", items:[0:"Door/Window/External Alarm sensor",1:"External button"]],
+  [name:"p2", index:2, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"State when closed", items:[0:"Door/Window closed",1:"Door/Window open"]],
+  [name:"p3", index:3, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:4, title:"Visual LED indicator", items:[0:"None",1:"Opening / Closing",2:"Wake up",4:"Tampering"]],
+  [name:"p4", index:4, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"Range test after double click", items:[0:"Disabled",1:"Enabled"]],
+  [name:"p10", index:10, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:2, title:"2nd association group triggers", items:[0:"Opening & Closing",1:"Opening",2:"Closing"]],
+  [name:"p11", index:11, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:2, title:"Commands sent to 2nd association group", items:[0:"On",1:"Off",2:"On & Off"]],
+  [name:"p12", index:12, fw:"3.2", mode:"zwave", size:2, type:"number", default:255, min:0, max:255, title:"Value of On command sent to 2nd association group (0-99, 255)"],
+  [name:"p13", index:13, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:0, max:255, title:"Value of Off command sent to 2nd association group (0-99, 255)"],
+  [name:"p14", index:14, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:0, max:32400, title:"Time delay of On command frame (0-32400 Seconds)"],
+  [name:"p15", index:15, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:0, max:32400, title:"Time delay of Off command frame (0-32400 Seconds)"],
+  [name:"p20", index:20, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:5, title:"Type of alarm frames (3rd Association group)", items:[
 			0:"Door/Windows sensor",1:"Smoke sensor",2:"CO detector",3:"CO2 detector",4:"High temperature sensor",2:"Flood sensor"]],
-		[name:"p30", index:30, fw:"3.2", mode:"zwave", size:2, type:"number", default:5, min:0, max:32400, title:"Delay of tamper alarm cancellation (0-32400 Seconds)"],
-		[name:"p31", index:31, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"Reporting tamper alarm cancellation", items:[0:"Do not send",1:"Send"]],
-		[name:"p50", index:50, fw:"3.2", mode:"zwave", size:2, type:"number", default:300, min:0, max:32400, title:"Temperature measurement interval (5-32400 Seconds 0=Off)"],
-		[name:"p51", index:51, fw:"3.2", mode:"zwave", size:2, type:"number", default:10, min:0, max:300, title:"Temperature report threshold (0.1DegC)"],
-		[name:"p52", index:52, fw:"3.2", mode:"zwave", size:2, type:"number", default:300, min:0, max:32400, title:"Temperature report interval (5-32400 Seconds 0=Off)"],
-		[name:"p53", index:53, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:-1000, max:1000, title:"Temperature offset (0.1DegC)"],
+  [name:"p30", index:30, fw:"3.2", mode:"zwave", size:2, type:"number", default:5, min:0, max:32400, title:"Delay of tamper alarm cancellation (0-32400 Seconds)"],
+  [name:"p31", index:31, fw:"3.2", mode:"zwave", size:1, type:"enum", default:0, min:0, max:1, title:"Reporting tamper alarm cancellation", items:[0:"Do not send",1:"Send"]],
+  [name:"p50", index:50, fw:"3.2", mode:"zwave", size:2, type:"number", default:300, min:0, max:32400, title:"Temperature measurement interval (5-32400 Seconds 0=Off)"],
+  [name:"p51", index:51, fw:"3.2", mode:"zwave", size:2, type:"number", default:10, min:0, max:300, title:"Temperature report threshold (0.1DegC)"],
+  [name:"p52", index:52, fw:"3.2", mode:"zwave", size:2, type:"number", default:300, min:0, max:32400, title:"Temperature report interval (5-32400 Seconds 0=Off)"],
+  [name:"p53", index:53, fw:"3.2", mode:"zwave", size:2, type:"number", default:0, min:-1000, max:1000, title:"Temperature offset (0.1DegC)"],
 
-		[name:"enableDebugging", mode:"settings", type:"bool", title:"Enable Debug Logging", default:"true"],
-		[index:1, mode:"association"],
-		[index:2, mode:"association"],
-		[index:3, mode:"association"],
-		[name:"battery", mode:"battery"]
-	]
+  [name:"enableDebugging", mode:"settings", type:"bool", title:"Enable Debug Logging", default:"true"],
+  [index:1, mode:"association"],
+  [index:2, mode:"association"],
+  [index:3, mode:"association"],
+  [name:"battery", mode:"battery"]
+]
 }
 
 //////////////
@@ -78,19 +93,17 @@ def updated() {
 //////////////////
 // Installed event
 def installed() {
-	logDebug("Installed")
+  logDebug("Installed")
   state.currentProperties = [:]
 }
 
 ///////////////////
 // basicv1.BasicSet
 def zwaveEvent(hubitat.zwave.commands.basicv1.BasicSet cmd) {
-
-	def state = cmd.value ? "open" : "closed"
-	if(device.currentValue("contact") != state) {
-		log.info "Contact ${state}"
-		createEvent(name:"contact", value:state, isStateChange:true, displayed:true)
-	}
+  def state = cmd.value ? "open" : "closed"
+  if(device.currentValue("contact") != state)
+    log.info "Contact ${state}"
+  createEvent(name:"contact", value:state, isStateChange:true, displayed:true)
 }
 
 /////////////////////////////////////////////////////
