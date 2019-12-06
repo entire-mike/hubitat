@@ -22,8 +22,8 @@ metadata {
     capability "Tamper Alert"
     capability "Temperature Measurement"
 
-    command "clear"
-		
+//    command "clear"
+	
     fingerprint mfr: "010F", deviceId: "0x1001", inClusters: "0x30,0x84,0x85,0x80,0x8F,0x56,0x72,0x86,0x70,0x8E,0x31,0x9C"
   }
 	
