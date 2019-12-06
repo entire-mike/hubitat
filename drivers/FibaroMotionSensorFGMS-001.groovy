@@ -91,10 +91,8 @@ def zwaveEvent(hubitat.zwave.commands.basicv1.BasicSet cmd) {
 	
   motion = (cmd.value) ? "active" : "inactive"
   if(device.currentValue("motion") != motion)
-  {
     log.info("motion '${motion}'")
-    sendEvent(name: "motion", value: motion)
-  }
+  sendEvent(name: "motion", value: motion)
 }
 
 /////////////////////////////////////////////////////
