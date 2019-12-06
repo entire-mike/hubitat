@@ -58,7 +58,7 @@ private parameterMap() {
     [index:1, mode:"association"],
     [index:2, mode:"association"],
     [index:3, mode:"association"],
-		[name:"battery", mode:"battery"]
+    [name:"battery", mode:"battery"]
   ]
 }
 
@@ -210,7 +210,7 @@ private commands(commands, delay=500) {
 ///////////////////////////////////////////////
 // Format the command according to the security
 private command(hubitat.zwave.Command cmd) {
-	if (getDataValue("zwaveSecurePairingComplete") == "true")
+  if (getDataValue("zwaveSecurePairingComplete") == "true")
     zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
   else
     cmd.format()
@@ -238,15 +238,15 @@ def zwaveEvent(hubitat.zwave.commands.multichannelv3.MultiChannelCmdEncap cmd) {
 // Update any settings that have changed
 def updateSettings()
 {
-	def cmds = []
-	def Updating = "No"
+  def cmds = []
+  def Updating = "No"
 
-	if(settings.firmwareVersion == null)
+  if(settings.firmwareVersion == null)
     cmds << zwave.versionV1.versionGet()
     
-	// Set the individual settings
-	parameterMap().each {
-		if (validForFirmware(it)) {
+  // Set the individual settings
+  parameterMap().each {
+    if (validForFirmware(it)) {
       if (it.mode == "zwave") {
         if (state.currentProperties."${it.name}" == null) {
           Updating = "Yes"
@@ -272,12 +272,12 @@ def updateSettings()
         log.info("Updating association group ${it.index}")
         cmds << zwave.associationV2.associationSet(groupingIdentifier: it.index, nodeId: [zwaveHubNodeId])
         cmds << zwave.associationV2.associationGet(groupingIdentifier: it.index)
-		  }
+      }
       else if(it.mode == "removeAssociation") {
         log.info("Removing association group ${it.index}")
         cmds << zwave.associationV2.associationRemove(groupingIdentifier: it.index, nodeId: [])
         cmds << zwave.associationV2.associationGet(groupingIdentifier: it.index)
-		  }
+      }
       else if(it.mode == "wakeup" && validForFirmware(it) && state.currentProperties.wI != settings.wakeUpInterval) {
         cmds << zwave.wakeUpV2.wakeUpIntervalSet(seconds:settings.wakeUpInterval, nodeid:zwaveHubNodeId)
         cmds << zwave.wakeUpV2.wakeUpIntervalGet( )
@@ -289,7 +289,7 @@ def updateSettings()
     }
   }
   sendEvent(name:"Updating", value: Updating)
-	return cmds
+  return cmds
 }
 
 //////////////////////////////////
@@ -343,7 +343,7 @@ def updateProperty(cmd)
         log.info "overwritten parameter ${cmd.parameterNumber} with '${value}'"
       }
       else {
-  	    device.updateSetting("${param.name}", value)
+        device.updateSetting("${param.name}", value)
         log.info "overwritten parameter ${cmd.parameterNumber} with ${value}"
       }
     }
@@ -424,23 +424,23 @@ def SettingsPending(currentProperties)
 {
   def Pending = 0
 	
-	parameterMap().each {
+  parameterMap().each {
     if(validForFirmware(it)) {
       if (it.mode == "zwave"){
-			  if (currentProperties."${it.name}" == null)
-			    Pending = Pending + 1
-			  else if (it.type == null && currentProperties."${it.name}" != it.default)
-			    Pending = Pending + 1
-			  else if (it.type != null && settings."${it.name}" != null && currentProperties."${it.name}" != settings."${it.name}".toInteger())
+        if (currentProperties."${it.name}" == null)
           Pending = Pending + 1
-		  }
+        else if (it.type == null && currentProperties."${it.name}" != it.default)
+          Pending = Pending + 1
+        else if (it.type != null && settings."${it.name}" != null && currentProperties."${it.name}" != settings."${it.name}".toInteger())
+          Pending = Pending + 1
+      }
       else if(it.mode == "association" && currentProperties."a${it.index}" != zwaveHubNodeId)
         Pending = Pending + 1
       else if(it.mode == "wakeup" && state.currentProperties.wI != settings.wakeUpInterval) 
         Pending = Pending + 1
     }
-	}
-	return Pending
+  }
+  return Pending
 }
 
 ///////////////////
