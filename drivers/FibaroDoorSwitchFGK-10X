@@ -21,7 +21,7 @@ metadata {
     capability "Sensor"
     capability "Tamper Alert"
 
-//    command "clear"
+    command "clear"
         
     fingerprint deviceId: "0x4000", inClusters: "0x30,0x9C,0x60,0x85,0x72,0x70,0x86,0x80,0x56,0x84,0x7A"
     fingerprint deviceId: "0x4001", inClusters: "0x5E,0x85,0x59,0x22,0x20,0x80,0x70,0x56,0x5A,0x7A,0x72,0x8E,0x71,0x73,0x98,0x2B,0x9C,0x30,0x31,0x86,0x84"
@@ -119,7 +119,7 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport 
 ////////////////////////////////////
 // Standard parse to command classes
 def parse(String description) {
-  def cmd = zwave.parse(description)
+  def cmd = zwave.parse(description, [0x20:1])
   if (cmd) {
     logDebug("Parsed '${description}'")
     return zwaveEvent(cmd)
@@ -457,3 +457,4 @@ def validForFirmware(item) {
   }
   return(ret)
 }
+
