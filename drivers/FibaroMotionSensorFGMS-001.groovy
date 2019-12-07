@@ -22,8 +22,8 @@ metadata {
     capability "Tamper Alert"
     capability "Temperature Measurement"
 
-//    command "clear"
-	
+    command "clear"
+		
     fingerprint mfr: "010F", deviceId: "0x1001", inClusters: "0x30,0x84,0x85,0x80,0x8F,0x56,0x72,0x86,0x70,0x8E,0x31,0x9C"
   }
 	
@@ -109,12 +109,14 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport 
   switch (cmd.sensorType as Integer) {
   case 1:
     def cmdScale = cmd.scale == 1 ? "F" : "C"
+    if(device.currentValue("temperature") != convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision))
+      log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
     sendEvent(name: "temperature", unit: "°${getTemperatureScale()}", value: convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision), displayed: true)
-    log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
     break
   case 3:
+    if(device.currentValue("illuminance") != cmd.scaledSensorValue.toInteger().toString())
+      log.info "Illuminance ${cmd.scaledSensorValue}lux"
     sendEvent(name: "illuminance", value: cmd.scaledSensorValue.toInteger().toString(), unit:"lux", displayed: true)
-    log.info "Illuminance ${cmd.scaledSensorValue}lux"
     break
   case [25,52,53,54]:
     motionEvent(cmd.sensorType, cmd.scaledSensorValue )
@@ -130,12 +132,14 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv1.SensorMultilevelReport 
   switch (cmd.sensorType as Integer) {
   case 1:
     def cmdScale = cmd.scale == 1 ? "F" : "C"
-    sendEvent(name: "temperature", unit: "°${getTemperatureScale()}", value: convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision))
-    log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
+    if(device.currentValue("temperature") != convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision))
+      log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
+    sendEvent(name: "temperature", unit: "°${getTemperatureScale()}", value: convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision), displayed: true)
     break
   case 3:
-    sendEvent(name: "illuminance", value: cmd.scaledSensorValue.toInteger().toString(), unit:"lux")
-    log.info "Illuminance ${cmd.scaledSensorValue}lux"
+    if(device.currentValue("illuminance") != cmd.scaledSensorValue.toInteger().toString())
+      log.info "Illuminance ${cmd.scaledSensorValue}lux"
+    sendEvent(name: "illuminance", value: cmd.scaledSensorValue.toInteger().toString(), unit:"lux", displayed: true)
     break
   case [25,52,53,54]:
     motionEvent(cmd.sensorType, cmd.scaledSensorValue )
@@ -166,7 +170,7 @@ def zwaveEvent(hubitat.zwave.commands.sensoralarmv1.SensorAlarmReport cmd) {
 ////////////////////////////////////
 // Standard parse to command classes
 def parse(String description) {
-  def cmd = zwave.parse(description)
+  def cmd = zwave.parse(description, [0x20:1])
   if (cmd) {
     logDebug("Parsed '${description}'")
     return zwaveEvent(cmd)
