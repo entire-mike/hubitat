@@ -1,8 +1,10 @@
 /*
   Fibaro Motion Sensor FGMS-001
+
   Based on code from the multiple people from the Hubitat Community and reference drivers from Hubitat
   These include but not limited to 
     Jean-Jacques GUILLEMAUD, Artur Draga, Bryan Turcotte, Robin Winbourne, Eric Maycock
+
   Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
   in compliance with the License. You may obtain a copy of the License at:
  
@@ -11,6 +13,7 @@
   Unless required by applicable law or agreed to in writing, software distributed under the License is distributed
   on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License
   for the specific language governing permissions and limitations under the License.
+
 */
 
 metadata {
@@ -22,9 +25,13 @@ metadata {
     capability "Tamper Alert"
     capability "Temperature Measurement"
 
+    attribute "health", "enum", ["alive", "dead"]
+    attribute "updating", "enum", ["yes", "no"]
+
     command "clear"
 		
-    fingerprint mfr: "010F", deviceId: "0x1001", inClusters: "0x30,0x84,0x85,0x80,0x8F,0x56,0x72,0x86,0x70,0x8E,0x31,0x9C"
+    fingerprint mfr:"010F", prod:"0800", deviceId: "1001", inClusters: "0x30,0x84,0x85,0x80,0x8F,0x56,0x72,0x86,0x70,0x8E,0x31,0x9C"
+    fingerprint mfr:"010F", prod:"0801", deviceId:"1001", inClusters:"0x5E,0x20,0x86,0x72,0x5A,0x59,0x85,0x73,0x84,0x80,0x71,0x56,0x70,0x31,0x8E,0x22,0x30,0x9C,0x98,0x7A"    
   }
 	
   preferences {
@@ -56,9 +63,9 @@ private parameterMap() {
     [name:"p89", index:89, mode:"zwave", size:1, type:"enum", default:1, min:0, max:1, title:"Visual Tamper alarm ", items:[0:"No", 1:"Yes"]],
     [name:"enableDebugging", mode:"settings", type:"bool", title:"Enable Debug Logging", default:"true"],
     [index:1, mode:"association"],
-    [index:2, mode:"association"],
-    [index:3, mode:"association"],
-    [name:"battery", mode:"battery"]
+    [index:2, fw:"2.4-2.8", mode:"association"],
+    [index:3, fw:"2.4-2.8", mode:"association"],
+		[name:"battery", mode:"battery"]
   ]
 }
 
@@ -76,6 +83,8 @@ def clear() {
 // Updated event
 def updated() {
   logDebug("updated")
+  unschedule()
+  schedule("0 0 * ? * * *", healthCheck)
 }
 
 /////////////////////////////////////////////////////
@@ -109,17 +118,12 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv5.SensorMultilevelReport 
   switch (cmd.sensorType as Integer) {
   case 1:
     def cmdScale = cmd.scale == 1 ? "F" : "C"
-    if(device.currentValue("temperature") != convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision))
-      log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
     sendEvent(name: "temperature", unit: "°${getTemperatureScale()}", value: convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision), displayed: true)
+    log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
     break
   case 3:
-    if(device.currentValue("illuminance") != cmd.scaledSensorValue.toInteger().toString())
-      log.info "Illuminance ${cmd.scaledSensorValue}lux"
     sendEvent(name: "illuminance", value: cmd.scaledSensorValue.toInteger().toString(), unit:"lux", displayed: true)
-    break
-  case [25,52,53,54]:
-    motionEvent(cmd.sensorType, cmd.scaledSensorValue )
+    log.info "Illuminance ${cmd.scaledSensorValue}lux"
     break
   }
 }
@@ -132,36 +136,32 @@ def zwaveEvent(hubitat.zwave.commands.sensormultilevelv1.SensorMultilevelReport 
   switch (cmd.sensorType as Integer) {
   case 1:
     def cmdScale = cmd.scale == 1 ? "F" : "C"
-    if(device.currentValue("temperature") != convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision))
-      log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
-    sendEvent(name: "temperature", unit: "°${getTemperatureScale()}", value: convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision), displayed: true)
+    sendEvent(name: "temperature", unit: "°${getTemperatureScale()}", value: convertTemperatureIfNeeded(cmd.scaledSensorValue, cmdScale, cmd.precision))
+    log.info "Temperature ${cmd.scaledSensorValue}${cmdScale}"
     break
   case 3:
-    if(device.currentValue("illuminance") != cmd.scaledSensorValue.toInteger().toString())
+    if(device.currentValue("illuminance") != cmd.scaledSensorValue.toInteger())
       log.info "Illuminance ${cmd.scaledSensorValue}lux"
-    sendEvent(name: "illuminance", value: cmd.scaledSensorValue.toInteger().toString(), unit:"lux", displayed: true)
-    break
-  case [25,52,53,54]:
-    motionEvent(cmd.sensorType, cmd.scaledSensorValue )
+    sendEvent(name: "illuminance", value: cmd.scaledSensorValue.toInteger(), unit:"lux")
     break
   }
 }
 
 
-private motionEvent(Integer sensorType, value) {
-  logDebug("${device.displayName} - Executing motionEvent() with parameters: ${sensorType}, ${value}")
-  def axisMap = [52: "yAxis", 53: "zAxis", 54: "xAxis"]
-  switch (sensorType) {
-  case 25:
-    sendEvent(name: "motionText", value: "Vibration:\n${value}", displayed: false)
+/////////////////////////////////////////////////////
+//notificationv3.NotificationReport
+def zwaveEvent(hubitat.zwave.commands.notificationv3.NotificationReport cmd) {
+	logDebug "NotificationReport received ${cmd}"
+  
+  switch (cmd.notificationType) {
+  case 7:
+    motion = (cmd.event) ? "active" : "inactive"
+    if(device.currentValue("motion") != motion)
+      log.info("motion '${motion}'")
+    sendEvent(name: "motion", value: motion)
     break
-  case 52..54:
-    sendEvent(name: axisMap[sensorType], value: value , displayed: false)
-    runIn(2,"axisEvent")
-    break
-  }
+	}
 }
-
 
 def zwaveEvent(hubitat.zwave.commands.sensoralarmv1.SensorAlarmReport cmd) {
   logDebug("sensoralarmv1.SensorAlarmReport '${cmd}'")
@@ -170,7 +170,8 @@ def zwaveEvent(hubitat.zwave.commands.sensoralarmv1.SensorAlarmReport cmd) {
 ////////////////////////////////////
 // Standard parse to command classes
 def parse(String description) {
-  def cmd = zwave.parse(description, [0x20:1])
+  setHealth("alive")
+  def cmd = zwave.parse(description, [0x86:1])
   if (cmd) {
     logDebug("Parsed '${description}'")
     return zwaveEvent(cmd)
@@ -181,7 +182,7 @@ def parse(String description) {
 /////////////////////
 // Standard catch all
 def zwaveEvent(hubitat.zwave.Command cmd) {
-  logDebug("Unhandled event $cmd")
+  log.warn("Unhandled event $cmd")
 }
 
 //////////////////////////////////////////
@@ -214,7 +215,7 @@ private commands(commands, delay=500) {
 ///////////////////////////////////////////////
 // Format the command according to the security
 private command(hubitat.zwave.Command cmd) {
-  if (getDataValue("zwaveSecurePairingComplete") == "true")
+	if (getDataValue("zwaveSecurePairingComplete") == "true")
     zwave.securityV1.securityMessageEncapsulation().encapsulate(cmd).format()
   else
     cmd.format()
@@ -242,64 +243,64 @@ def zwaveEvent(hubitat.zwave.commands.multichannelv3.MultiChannelCmdEncap cmd) {
 // Update any settings that have changed
 def updateSettings()
 {
-  def cmds = []
-  def Updating = "No"
+	def cmds = []
+	def updating = "no"
 
-  if(settings.firmwareVersion == null)
+	if(settings.firmwareVersion == null)
     cmds << zwave.versionV1.versionGet()
     
-  // Set the individual settings
-  parameterMap().each {
-    if (validForFirmware(it)) {
+	// Set the individual settings
+	parameterMap().each {
+		if (validForFirmware(it)) {
       if (it.mode == "zwave") {
         if (state.currentProperties."${it.name}" == null) {
-          Updating = "Yes"
+          updating = "yes"
           if(settings."${it.name}" != null) {
             log.info("Setting parameter ${it.index} to " + settings."${it.name}")
-            cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Array(settings."${it.name}", it.size), parameterNumber: it.index, size: it.size)
+            cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: settings."${it.name}".toInteger(), parameterNumber: it.index, size: it.size)
           }
           else if(it.default != null) {
             log.info("Setting parameter ${it.index} to ${it.default}")
-            cmds << zwave.configurationV1.configurationSet(configurationValue: integer2Array(it.default, it.size), parameterNumber: it.index, size: it.size)
+            cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: it.default.toInteger(), parameterNumber: it.index, size: it.size)
           }
           cmds << zwave.configurationV1.configurationGet(parameterNumber: it.index)
         }
         else if (settings."${it.name}" != null && state.currentProperties."${it.name}" != settings."${it.name}".toInteger()) { 
-          Updating = "Yes"
+          updating = "yes"
           log.info("Setting parameter ${it.index} to " + settings."${it.name}" + " last value " + state.currentProperties."${it.name}")
-          cmds << zwave.configurationV1.configurationSet(configurationValue:  integer2Array(settings."${it.name}", it.size), parameterNumber: it.index, size: it.size)
+          cmds << zwave.configurationV1.configurationSet(scaledConfigurationValue: settings."${it.name}".toInteger(), parameterNumber: it.index, size: it.size)
           cmds << zwave.configurationV1.configurationGet(parameterNumber: it.index)
         } 
       }
       else if(it.mode == "association" && state.currentProperties."a${it.index}" != zwaveHubNodeId) {
-			  updating = "Yes"
+			  updating = "yes"
         log.info("Updating association group ${it.index}")
         cmds << zwave.associationV2.associationSet(groupingIdentifier: it.index, nodeId: [zwaveHubNodeId])
         cmds << zwave.associationV2.associationGet(groupingIdentifier: it.index)
-      }
+		  }
       else if(it.mode == "removeAssociation") {
         log.info("Removing association group ${it.index}")
         cmds << zwave.associationV2.associationRemove(groupingIdentifier: it.index, nodeId: [])
         cmds << zwave.associationV2.associationGet(groupingIdentifier: it.index)
-      }
+		  }
       else if(it.mode == "wakeup" && validForFirmware(it) && state.currentProperties.wI != settings.wakeUpInterval) {
         cmds << zwave.wakeUpV2.wakeUpIntervalSet(seconds:settings.wakeUpInterval, nodeid:zwaveHubNodeId)
         cmds << zwave.wakeUpV2.wakeUpIntervalGet( )
-        Updating = "Yes"
+        updating = "yes"
       }
       else if(it.mode == "battery") {
         cmds << zwave.batteryV1.batteryGet()
       }
     }
   }
-  sendEvent(name:"Updating", value: Updating)
-  return cmds
+  sendEvent(name:"updating", value: updating)
+	return cmds
 }
 
 //////////////////////////////////
 // Standard Version1 VersionReport
 def zwaveEvent(hubitat.zwave.commands.versionv1.VersionReport cmd) {	
-  logDebug("versionv1.VersionReport '${cmd}'")
+  log.info("versionv1.VersionReport '${cmd}'")
   state.firmwareVersion = "${cmd.applicationVersion}.${cmd.applicationSubVersion}"
   state.zWaveProtocolVersion = "${cmd.zWaveProtocolVersion}.${cmd.zWaveProtocolSubVersion}"
   log.info "Firmware Version ${state.firmwareVersion}"
@@ -347,7 +348,7 @@ def updateProperty(cmd)
         log.info "overwritten parameter ${cmd.parameterNumber} with '${value}'"
       }
       else {
-        device.updateSetting("${param.name}", value)
+  	    device.updateSetting("${param.name}", value)
         log.info "overwritten parameter ${cmd.parameterNumber} with ${value}"
       }
     }
@@ -355,7 +356,7 @@ def updateProperty(cmd)
       settings = SettingsPending(state.currentProperties)
       if(settings == 0) {
         log.info("parameter ${cmd.parameterNumber} reported value ${array2Integer(cmd.configurationValue)}. All parameters updated")
-        sendEvent(name:"Updating", value:"No")
+        sendEvent(name:"updating", value:"no")
       }
       else
         log.info("parameter ${cmd.parameterNumber} reported value ${array2Integer(cmd.configurationValue)}. ${settings} setting(s) left")
@@ -374,7 +375,7 @@ def zwaveEvent(hubitat.zwave.commands.associationv2.AssociationReport cmd) {
   settings = SettingsPending(state.currentProperties)
   if(settings == 0) {
     log.info "Association Group ${cmd.groupingIdentifier} reported node ${cmd.nodeId[0]}. All parameters updated"
-    sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
+    sendEvent(name:"updating", value:"no")
   }
   else
     log.info "Association Group ${cmd.groupingIdentifier} reported node ${cmd.nodeId[0]}. ${settings} setting(s) left"
@@ -416,7 +417,7 @@ def zwaveEvent(hubitat.zwave.commands.wakeupv2.WakeUpIntervalReport cmd) {
   settings = SettingsPending(state.currentProperties)
   if(settings == 0) {
     log.info "Wake up interval reported ${cmd.seconds}s. All parameters updated"
-    sendEvent(name:"Updating", value:"No", displayed:false, isStateChange: true)
+    sendEvent(name:"updating", value:"no")
   }
   else
     log.info "Wake up interval reported ${cmd.seconds}s. ${settings} setting(s) left"
@@ -428,23 +429,46 @@ def SettingsPending(currentProperties)
 {
   def Pending = 0
 	
-  parameterMap().each {
+	parameterMap().each {
     if(validForFirmware(it)) {
       if (it.mode == "zwave"){
-        if (currentProperties."${it.name}" == null)
+			  if (currentProperties."${it.name}" == null)
+			    Pending = Pending + 1
+			  else if (it.type == null && currentProperties."${it.name}" != it.default)
+			    Pending = Pending + 1
+			  else if (it.type != null && settings."${it.name}" != null && currentProperties."${it.name}" != settings."${it.name}".toInteger())
           Pending = Pending + 1
-        else if (it.type == null && currentProperties."${it.name}" != it.default)
-          Pending = Pending + 1
-        else if (it.type != null && settings."${it.name}" != null && currentProperties."${it.name}" != settings."${it.name}".toInteger())
-          Pending = Pending + 1
-      }
+		  }
       else if(it.mode == "association" && currentProperties."a${it.index}" != zwaveHubNodeId)
         Pending = Pending + 1
       else if(it.mode == "wakeup" && state.currentProperties.wI != settings.wakeUpInterval) 
         Pending = Pending + 1
     }
+	}
+	return Pending
+}
+
+
+///////////////////
+// setHealth
+def setHealth(health) {
+  if(device.currentValue("health") != health)
+    sendEvent(name:"health", value: health)
+}
+
+///////////////////
+// healthCheck
+def healthCheck() {
+  // If battery device then use the wake up interval
+  if(settings.wakeUpInterval != null) {
+    if((now() - device.getLastActivity().getTime()) / 1000 > (settings.wakeUpInterval * 1.05))
+      setHealth("dead")
   }
-  return Pending
+//  else {
+//    log.info "healthCheck():Checking ${now() - device.getLastActivity()} > ${settings.wakeUpInterval * 1.05}"
+//    if((now() - device.getLastActivity()) > (settings.wakeUpInterval * 1.05))
+//      setHealth("dead")
+//  }
 }
 
 ///////////////////
@@ -463,25 +487,6 @@ def array2Integer(array) {
   }
 }
 
-///////////////////
-// Integer to Array
-def integer2Array(value, size) {
-	
-  if(value instanceof String)
-    value = value.toInteger()
-
-  switch(size) {
-  case 1:
-    [value & 0xFF]
-    break
-  case 2:
-    [(value >> 8) & 0xFF, value & 0xFF]
-    break
-  case 4:
-    [(value >> 24) & 0xFF, (value >> 16) & 0xFF, (value >> 8) & 0xFF, value & 0xFF]
-    break
-  }
-}
 
 ///////////////////////////////////////////////
 // Check if parameter is valid for the firmware
